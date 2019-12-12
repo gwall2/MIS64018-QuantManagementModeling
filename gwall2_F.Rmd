@@ -1,0 +1,121 @@
+---
+title: "Group Optimization - Final Exam"
+author: "Gordon Wall (gwall2)"
+date: "12/11/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Workspace Set-Up
+```{r}
+library(dplyr)
+library(caret)
+library(ggplot2)
+# install.packages('tabuSearch')
+library(tabuSearch)
+```
+
+### Data Creation
+
+To address the issues posed with solving this problem, I first determine what are three 'success' factors that will affect the contribution each student makes to their group.
+
+# Success Factors & Contribution
+First is **Grade Point Average**, written in the following dataframe as **GPA**. This will be a good metric on individual contribution because, most likely, a student who is doing well in school is a student who applies themself and will continue to do so. A higher GPA will reflect a probable higher contribution to the project. While it's interesting to consider how one student with a high GPA still might not know as much about the project as another student with a more relevant background, but this distinction won't matter given the parameters of the problem. We consider the individual contribution of each student as a measure of the overall success of the group project and a student with high academic success will contribute more to the project, regardless of knowledge background. If the student has a more relevant background regarding the project then this certainly would ease their workload, but a student with less relevant background and high GPA will go out of their way to learn and contribute anyway. GPA will be on a scale of 1-4 (considering any decimal within the range to the nearest hundreth), with anything < 1 not included per Kent State's academic dismissal policy (anyone below a 1.0 GPA). 
+
+Second is **Experience with Group Projects**, written as **EXP**. This, in essence, is the general amount of exposure any given student has had working to complete group projects. Hypothetically, anyone with more experience in this type of academic learning evironment will perform better than someone with less. This could just as easily be proven to be a negligible statistical relationship in real-life, but I will make the assumption to facilitate this problem. EXP will be on an integer scale of 0-3, with 0=None; 1=Little; 2=Some; and 3=Much. 
+
+Third and final is **Leadership Skills**, written as **SKILL**. This will be a gauge of who can take charge, efficiently manage, and coordinate in the benefit of the overall group project goal. Assumedly again, someone with effective leadership skills (higher value) should help steer the group toward more positive success. I will also gauge SKILL on a 0-3 scale, with 0=Poor; 1=OK; 2=Good; and 3=Great.
+
+# Data Collection
+Optimizing student groups and, consequently, group project success is a widely sought-after real-world scenario by which most teachers solve by guessing, blind randomization, or manually (suboptimal and inefficient). Considering the three aforementioned 'success factors', a teacher hoping to optimize their student groups could first assign a random student ID to each of the 12 students (1:12). Then, under the anonymity of the student ID, each student could complete and submit a short questionaire that asks them to fill in their GPA, rank themselves 0-3 on having done group project work previous to the class and, finally, ends with a short personality test to gauge leadership ability (0-3). Once submitted, the teacher would have all necessary success factor data needed to group students within the assumptions and parameters of this problem.
+
+Note: Although this may be an effective preliminary data-gathering method in a real classroom, I've randomly generated success factor data for all 12 students per the assignment instructions.
+
+# Optimization Complexity
+To reduce complexity in our model, it's worth discussing how all three success factors could simultaneously gauge the overall potential contribution to group project success. I believe the answer to this is an **overall success score**, written in the dataframe as **score**. Summing across each observation (student) in the dataframe, a composite score can be produced which benchmarks the potential of each student. Combining our three factors' scales (1-4, 0-3, 0-3) we define score as being **1 <= score <= 10**, where 1 is the minimum score and 10 is the maximum score that each student could have. A low composite score will reduce the likelihood of that student's success contribution, and vice versa for a high score. With all this defined, the model's goal will be to **maximize the average composite score across all groups** so that each group's average score is maximized, therefore maximizing success on the group project. Here, I import the randomized student data and create/add the derived variable, score:
+
+```{r}
+## csv file was created in excel for ease of table-making, with all observation values
+## randomly generated with RANDBETWEEN() function to preserve target ranges for each variable
+
+## imported from my local drive, but csv file will be attached in github for you
+group.df = read.csv("C:/Users/Gordon/Dropbox/KSU MSBA Program/SEMESTER 4/QUANT MANAGEMENT MODELING 64018/Exam/students.csv")
+
+## add new variable, score, to dataframe
+group.df = mutate(group.df, score = rowSums(group.df))
+
+## remove unwanted variables; vector of 12 student success scores
+score.df = group.df[,4]
+```
+
+### Model Formulation & Solve
+The initial discussion on how to formulate this problem will be a conceptualization. I believe tabuSearch is the only optimization method I know of that can handle this type of formulation. TabuSearch makes use of temporary memory and is based in the very essence of machine learning, remembering local optimal solutions as it continues to navigate the search space and learning as it goes. This specific model should be set up like the following:
+
+# Inputs
+We have n = 12 students and m = 4 groups with a k_i = 3 size, where 1 <= i <= m. A summation of k_1 to k_m will add up to the total students, n. Any given search state at each step of the tabuSearch navigation will sort groups into subsets of the total students, following the above parameters. Any given g value will be a subset of 3 unique students, such that a summation of g_1 to g_k will add up to the total groups, m. 
+
+# Process
+Next is the search process. The algorithm will be set to maximize the average score of the 3 students in each subset/grouping, g. Once it has populated the initial g groupings with 3  unique students each, with S' (best solution) set equal to S* (first, random solution) set equal to zero, a "move" will be considered the switching of one student, x, with different group's student, y. This relationship is essential to why tabuSearch is necessary to model this problem because any move made, switching one student in one group for another student in a second group will be catalogued on the tabu list, with L levels (how many solutions it will remember), and consider immediately switching the same student in the previous move during the succeeding move as "tabu". This will prevent the algorithm from getting stuck in a local maximum and force it to consider groupings with some level of student consistency in each for several moves before deciding to rearrange the students again. The thinking behind this is that if the algorithm thought it productive to switch that student to a new group, it should't immediately abandon that decision in the next move, unless it superceeds the aspiration criteria we set for our model, where it would then replace the best solution, S', as the new best solution. 
+
+# Constraints
+Constraints will include the size of the groups (k = 3), the amount of groups (m = 4), and the number of students (n = 12). Another constraint will be the restriction that the tabuSearch model can't immediately switch a student's grouping who was just switched in the previous move. Finally, the average score for each group must be between 1 <= score <= 10, given the data in the vector.
+
+# Result
+The result should be m groupings (4) of k students (3) that all have an optimally maximized average group "success score." To achieve this maximal average, the result will most likely be groupings with highly successfully rated students with poorly successfully rated students that will balance out the average in between. In a real world setting, this is ideal because group projects are meant for more than just dividing up workload; they're designed for students with different backgrounds/knowledge bases to collaborate and share, taking on a teacher-and-student role where they learn new things from some peers and solidy their own knowledge by teaching other peers simultaneously. The product of a healthy group atmosphere like this one will be a higher, on average, group project score across the entirety of the class.
+
+# Code
+```{r}
+library(tabuSearch)
+set.seed(123)
+
+n = 12
+m = 4
+k = 3
+
+# set maximization function
+tabu.fx = function(x){
+  mean(g_1) + mean(g_2) + mean(g_3) + mean(g_4)
+}
+
+s_current <- s_best <- s0
+inter_count <- 0
+for (k in 1:niter){
+  g_i = sample(k_i)
+}
+
+for (x,y){
+  where 1 <= x
+  and y <= m
+  x != y
+}
+
+if (dif < 0){
+  s_current = s_best
+} else{
+  random <- runif()
+}
+```
+###################
+###################
+IMPORTANT NOTE:
+###################
+###################
+
+As you can see, I ended up with incomplete code. Believe me when I say I've been working on this for over a week now, testing multiple modeling methods and reading upwards of 20 scholarly journals about this subject. The overall theme I discovered is that optimizing factors about groupings can only sufficiently be solved with metaheuristics, specifically tabuSearch methods. In fact, there was one scholar of which I read his whole body of work about optimizing group pairings within the classroom and he was very determined to stress that he measured with several models and none did nearly as well as tabuSearch. The downside of his work was that it was highly theorized, performed in python, and he didn't supply his code for reference. Without much else about this type of groupings problem in the books/on the internet, I fell short of being able to implement this algorithm. More importantly, it seems like I'm at a disadvantage as I only just began learning R language, and coding in general, this semester and we spent very little time covering the actual implementation of tabuSearch. The scope of this problem seemed out of the reach of the work covered in class, and I struggled with the coding portion because I learn heavily from watching and then repeating/doing, and there were very few options with that for problems of this complexity. Further, virtually nothing exists on the internet regarding examples of tabuSearch methods in R (almost all are done in python), which left me without places to turn for more information. Finally, when I was stuck with this method, you may be wondering why I didn't try other, simpler modeling methods. Well, I did try others we learned about in class too, but none truly described all the parameters of this problem like tabuSearch had the potential too, so I stuck to my guns.
+
+I don't mean this message as an excuse; in fact, it's far from. I understand I'll have to take a loss in points for not actually solving the final model. However, I write this in hopes that you'll understand my perspective on the complexity of writing a working algorithm for a problem of this nature versus the scope of what we covered. Further, I made sure to write down everything I considered during my thought process on this assignment. I believe I have a very firm conceptual understanding of how these optimization methods work, both tabuSearch regarding the formulation of this problem AND all the other methods we covered in class, and I know that I've shown that through the quality of the work I've submitted this semester as well as the conceptual layout I wrote with this assignment. I ask that you consider what I've said here in your grading. 
+
+Again, thank you for a wonderful semester and I look forward to learning more through the MSBA program and spending all my outside hours on personal learning of analytics and modeling with code. If you have any suggestions on resources to utilize in my free time, please let me know.
+
+Best,
+Gordon W. Wall
+
+
+
+
+
+
+
